@@ -2102,7 +2102,8 @@ var urls = {
             "action": "check_host",
             "parameters": {
               "threshold": "60",
-              "java_home": data.java_home,
+              "java_home_x86": data.java_home_x86,
+              "java_home_ppc": data.java_home_ppc,
               "jdk_location": data.jdk_location,
               "check_execute_list": "java_home_check"
             }

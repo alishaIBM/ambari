@@ -33,6 +33,14 @@ App.WizardStep3View = App.TableView.extend({
   }.property('controller.hosts.length'),
 
   /**
+   * Is some error with provided java path
+   * @type {bool}
+   */
+  onError: function () {
+    return !Em.isEmpty(this.get('controller.ppcJavaNameError'));
+  }.property('controller.ppcJavaNameError'),
+
+  /**
    * Message with info about registration result
    * @type {string}
    */
@@ -334,4 +342,18 @@ App.WizardHostView = Em.View.extend({
 
 });
 
+App.WizardStep03JavaHome = Em.TextField.extend({
 
+  /**
+   * Submit form if "Enter" pressed
+   * @method keyPress
+   * @param {object} event
+   * @returns {bool}
+   */
+  keyPress: function(event) {
+    if (event.keyCode == 13) {
+      return false;
+    }
+    return true;
+  }
+});

@@ -27,6 +27,7 @@ import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.SCRIPT;
 import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.SCRIPT_TYPE;
 import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.STACK_NAME;
 import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.STACK_VERSION;
+import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.JAVA_HOME;
 
 import java.util.HashSet;
 import java.util.List;
@@ -449,6 +450,17 @@ public class AmbariActionExecutionHelper {
         resourceFilter.getComponentName() : componentName);
 
       Map<String, String> hostLevelParams = execCmd.getHostLevelParams();
+
+      Configuration configuration = new Configuration(); 
+      String osArch = clusters.getHost(hostName).getOsArch();
+      if (osArch.startsWith("ppc")) {
+        commandParams.put(JAVA_HOME, configuration.getJavaHomePpc());
+        hostLevelParams.put(JAVA_HOME, configuration.getJavaHomePpc());
+      } else {
+        commandParams.put(JAVA_HOME, configuration.getJavaHome());
+        hostLevelParams.put(JAVA_HOME, configuration.getJavaHome());
+      }
+      
       hostLevelParams.put(AGENT_STACK_RETRY_ON_UNAVAILABILITY, configs.isAgentStackRetryOnInstallEnabled());
       hostLevelParams.put(AGENT_STACK_RETRY_COUNT, configs.getAgentStackRetryOnInstallCount());
       for (Map.Entry<String, String> dbConnectorName : configs.getDatabaseConnectorNames().entrySet()) {
@@ -531,7 +543,7 @@ public class AmbariActionExecutionHelper {
         cluster.getClusterName());
 
     if (clusterVersionEntity != null && clusterVersionEntity.getRepositoryVersion() != null) {
-      String hostOsFamily = clusters.getHost(hostName).getOsFamily();
+      String hostOsFamily = clusters.getHost(hostName).getOsFamily();      
       for (OperatingSystemEntity operatingSystemEntity : clusterVersionEntity.getRepositoryVersion().getOperatingSystems()) {
         // ostype in OperatingSystemEntity it's os family. That should be fixed
         // in OperatingSystemEntity.
@@ -550,7 +562,7 @@ public class AmbariActionExecutionHelper {
     }
 
     hostLevelParams.put(REPO_INFO, rootJsonObject.toString());
-
+ 
     // set the host level params if not already set by whoever is creating this command
     if (!hostLevelParams.containsKey(STACK_NAME) || !hostLevelParams.containsKey(STACK_VERSION)) {
       // see if the action context has a repository set to use for the command, otherwise use the

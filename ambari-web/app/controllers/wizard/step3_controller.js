@@ -75,6 +75,15 @@ App.WizardStep3Controller = Em.Controller.extend(App.ReloadPopupMixin, {
 
   requestId: 0,
 
+ppcList: [],
+ppcJavaNameError: "",
+jsonHostData: [],
+isJavaPpcEntered: true,
+ppcUiHostname: null,
+
+ppcUiJavaHome: null,
+hasJavaPpcError: false,
+
   /**
    * Timeout for registration
    * Based on <code>installOptions.manualInstall</code>
@@ -282,6 +291,7 @@ App.WizardStep3Controller = Em.Controller.extend(App.ReloadPopupMixin, {
         'hosts': this.getBootstrapHosts(),
         'user': this.get('content.installOptions.sshUser'),
         'sshPort': this.get('content.installOptions.sshPort'),
+        'ppcJavaHome': "null",
         'userRunAs': App.get('supports.customizeAgentUserAccount') ? this.get('content.installOptions.agentUser') : 'root'
     });
     App.router.get(this.get('content.controllerName')).launchBootstrap(bootStrapData, function (requestId) {
@@ -314,6 +324,7 @@ App.WizardStep3Controller = Em.Controller.extend(App.ReloadPopupMixin, {
    * @method loadStep
    */
   loadStep: function () {
+    this.set('hasJavaPpcError',false);
     var wizardController = this.get('wizardController');
     var previousStep = wizardController && wizardController.get('previousStep');
     var currentStep = wizardController && wizardController.get('currentStep');
@@ -462,6 +473,7 @@ App.WizardStep3Controller = Em.Controller.extend(App.ReloadPopupMixin, {
         'hosts': hosts.mapProperty('name'),
         'user': this.get('content.installOptions.sshUser'),
         'sshPort': this.get('content.installOptions.sshPort'),
+        'ppcJavaHome': "null",
         'userRunAs': App.get('supports.customizeAgentUserAccount') ? this.get('content.installOptions.agentUser') : 'root'
       });
     this.set('numPolls', 0);
@@ -809,7 +821,7 @@ App.WizardStep3Controller = Em.Controller.extend(App.ReloadPopupMixin, {
       name: 'ambari.service',
       sender: this,
       data: {
-        fields : '?fields=RootServiceComponents/properties/jdk.name,RootServiceComponents/properties/java.home,RootServiceComponents/properties/jdk_location'
+        fields : '?fields=RootServiceComponents/properties/jdk.name,RootServiceComponents/properties/java.home,RootServiceComponents/properties/java.home.ppc,RootServiceComponents/properties/jdk_location'
       },
       success: 'getJDKNameSuccessCallback'
     });
@@ -824,18 +836,23 @@ App.WizardStep3Controller = Em.Controller.extend(App.ReloadPopupMixin, {
     this.set('needJDKCheckOnHosts', !data.RootServiceComponents.properties["jdk.name"]);
     this.set('jdkLocation', Em.get(data, "RootServiceComponents.properties.jdk_location"));
     this.set('javaHome', data.RootServiceComponents.properties["java.home"]);
+    this.set('javaHomex86', data.RootServiceComponents.properties["java.home"]);
+    this.set('javaHomePpc', data.RootServiceComponents.properties["java.home.ppc"]);
   },
 
   doCheckJDK: function () {
     var hostsNames = (!this.get('content.installOptions.manualInstall')) ? this.get('bootHosts').filterProperty('bootStatus', 'REGISTERED').getEach('name').join(",") : this.get('bootHosts').getEach('name').join(",");
     var javaHome = this.get('javaHome');
+    var javaHomex86 = this.get('javaHome');
+    var javaHomePpc = this.get('javaHomePpc');
     var jdkLocation = this.get('jdkLocation');
     App.ajax.send({
       name: 'wizard.step3.jdk_check',
       sender: this,
       data: {
         host_names: hostsNames,
-        java_home: javaHome,
+        java_home_x86: javaHomex86,
+	java_home_ppc: javaHomePpc,
         jdk_location: jdkLocation
       },
       success: 'doCheckJDKsuccessCallback',
@@ -864,16 +881,112 @@ App.WizardStep3Controller = Em.Controller.extend(App.ReloadPopupMixin, {
   doCheckJDKerrorCallback: function () {
     this.set('isJDKWarningsLoaded', true);
   },
+
+    ppcInvalidJavaName: function() {
+       this.ppcUiJavaHome = document.getElementById('java.home').value;
+        //this.ppcUiJavaHome = this.get('ppcjavaname');
+        console.log("Entered ppcInvalidJavaName ", this.ppcUiJavaHome);
+        if(this.ppcUiJavaHome == '' || this.ppcUiJavaHome == null){
+	  this.set('ppcJavaNameError',Em.I18n.t('installer.step3.ppcJavaName.error'));
+          return true;
+	}
+        else if (/\s/.test(this.ppcUiJavaHome)) {
+          this.set('ppcJavaNameError', Em.I18n.t('installer.step3.ppcJavaName.error'));
+          return true;
+        }
+	else {
+	  this.set('ppcJavaNameError',"");
+          return false;
+	}		  
+    },
+    
+    
+    isJavaPpcEntered: false,
+
+    getPpcJavaHomeInfo: function() {
+        if (!this.ppcInvalidJavaName()) {
+            console.log("PRINT DATA FROM USER FOR PPC JAVA_HOME", this.ppcUiJavaHome, this.ppcList);
+            this.validateJavaPpc(this.ppcList, this.ppcUiJavaHome);
+        }
+    },
+
+    validateJavaPpc: function(ppcHosts, ppcJavaHome) {
+	    var self = this;
+            this.set('hasJavaPpcError',false); 
+	    var bootStrapData = JSON.stringify({
+	        'verbose': true,
+	        'sshKey': this.get('content.installOptions.sshKey'),
+	        'hosts': ppcHosts,
+	        'user': this.get('content.installOptions.sshUser'),
+	        'sshPort': this.get('content.installOptions.sshPort'),
+	        'userRunAs': App.get('supports.customizeAgentUserAccount') ? this.get('content.installOptions.agentUser') : 'root',
+	        'ppcJavaHome': ppcJavaHome
+	    });
+	    this.set('numPolls', 0);
+	    this.set('registrationStartedAt', null);
+	    this.set('isHostsWarningsLoaded', false);
+	    this.set('stopChecking', false);
+	    this.set('isSubmitDisabled', true);
+	    var selectedHosts = this.get('bootHosts');
+	    selectedHosts.forEach(function (_host) {
+	    	bootHostName = _host.get('name');
+	    	for (var i = 0; i < ppcHosts.length; i++) {
+		    	if (ppcHosts[i] == bootHostName) {
+		    		_host.set('bootStatus', 'DONE');
+		    		_host.set('bootLog', 'Retrying ...');
+		    	}
+	    	}
+	    }, this);
+	      
+	    App.router.get(this.get('content.controllerName')).launchBootstrap(bootStrapData, function(requestId) {
+	        if (requestId == '0') {
+	            self.startBootstrap();
+	        } else if (requestId) {
+	            self.set('content.installOptions.bootRequestId', requestId);
+	            App.router.get(self.get('content.controllerName')).save('installOptions');
+	            self.startBootstrap();
+	        }
+	    });
+        console.log("Done boostrap");
+	}, 
+	isPpcSuccessCallback: function (jsonData) {
+	  this.jsonHostData = jsonData;
+	 },
+	 isPpcErrorCallback: function (){
+		 console.log(" isPpcErrorCallback ");
+	 },
+	getHostPpcInfo: function () {
+		this.set('isHostsWarningsLoaded', false);
+		return App.ajax.send({
+			name: 'wizard.step3.host_info',
+			sender: this,
+			success: 'isPpcSuccessCallback',
+			error: 'isPpcErrorCallback'
+		});	
+	},
+
   parseJDKCheckResults: function (data) {
-    var jdkWarnings = [], hostsJDKContext = [], hostsJDKNames = [];
+    var jdkWarnings = [], hostsJDKContext = [], hostsJDKNames = [], hostsJDKNamesPpc = [], hostsJDKContextPpc = [];
+    this.getHostPpcInfo();
+    var tmp_jsonHostData = this.jsonHostData;
     // check if the request ended
     if (data.Requests.end_time > 0 && data.tasks) {
       data.tasks.forEach( function(task) {
         // generate warning context
         if (Em.get(task, "Tasks.structured_out.java_home_check.exit_code") == 1){
-          var jdkContext = Em.I18n.t('installer.step3.hostWarningsPopup.jdk.context').format(task.Tasks.host_name);
-          hostsJDKContext.push(jdkContext);
-          hostsJDKNames.push(task.Tasks.host_name);
+          //Hybrid PPC Code starts here
+          var warnedHost = tmp_jsonHostData.items.findProperty('Hosts.host_name', task.Tasks.host_name);
+          console.log("****** getHostInfoSuccessCallback ", warnedHost);
+        var jdkContext= Em.I18n.t('installer.step3.hostWarningsPopup.jdk.context').format(task.Tasks.host_name);
+         if (warnedHost.Hosts.os_arch.startsWith("ppc")) {
+                  hostsJDKNamesPpc.push(warnedHost.Hosts.host_name);
+                  hostsJDKContextPpc.push(jdkContext);
+          }
+          else {
+                  hostsJDKNames.push(warnedHost.Hosts.host_name);
+                  hostsJDKContext.push(jdkContext);
+          }
+          //Hybrid PPC Code ends here
         }
       });
       if (hostsJDKContext.length > 0) { // java jdk warning exist
@@ -887,8 +1000,32 @@ App.WizardStep3Controller = Em.Controller.extend(App.ReloadPopupMixin, {
           onSingleHost: false
         });
       }
+      if (hostsJDKContextPpc.length > 0) { // java jdk warning for ppc exist
+        var invalidJavaHomePpc = "";
+		if (this.get('javaHomePpc') == "" || this.get('javaHomePpc') == "null"){
+			invalidJavaHomePpc = "Java Home path is not available for PPC";
+			}
+		else{
+//		    invalidJavaHomePpc = Em.I18n.t('installer.step3.hostWarningsPopup.jdk.name').format(this.get('javaHomePpc'));
+		    invalidJavaHomePpc = "Java Home path not valid";
+		}
+        jdkWarnings.push({
+          name: invalidJavaHomePpc,
+          hosts: hostsJDKContextPpc,
+          hostsLong: hostsJDKContextPpc,
+          hostsNames: hostsJDKNamesPpc,
+          category: 'jdk',
+          onSingleHost: false
+        });
+      }
       this.set('jdkCategoryWarnings', jdkWarnings);
-    } else {
+      this.set('ppcList', hostsJDKNamesPpc);
+      //Show text box to enter PPC java home
+      if(this.ppcList.length && this.get('javaHomePpc') == null){
+        this.set('hasJavaPpcError', true);
+        }
+
+  } else {
       // still doing JDK check, data not ready to be parsed
       this.set('jdkCategoryWarnings', null);
     }
@@ -2105,3 +2242,4 @@ App.WizardStep3Controller = Em.Controller.extend(App.ReloadPopupMixin, {
   }
 
 });
+

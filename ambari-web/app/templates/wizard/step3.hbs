@@ -149,6 +149,27 @@
       {{/unless}}
     </div>
   {{/unless}}
+
+{{#if hasJavaPpcError}}
+  <div class="controls">     
+    <h5>Following Power hosts were added:</h5>
+    <p>
+    {{#each ppcList }}
+            {{this}}
+    {{/each}}
+    </p>
+    <h5>Please enter a valid JDK path for all the Power hosts:</h5>
+    
+     <div  {{bindAttr class="view.onError:error"}}>
+        {{view App.WizardStep03JavaHome  id="java.home" valueBinding="ppcjavahome"   target="controller" }}
+     
+    <button type="button" class="btn" {{bindAttr disabled="isJavaPpcEntered"}} {{action getPpcJavaHomeInfo  target="controller"}}>Validate</button>
+   </div>
+  <div><p class="help-inline">{{ppcJavaNameError}}</p></div>
+  </div>
+  {{/if}}
+
+
   <div class="btn-area">
     <button type="button" class="btn pull-left installer-back-btn" {{bindAttr disabled="isBackButtonDisabled"}} {{action back}}>
       &larr; {{t common.back}}

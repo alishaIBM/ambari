@@ -56,6 +56,9 @@ public class SshHostInfo {
   
   @XmlElement
   private String userRunAs;
+  
+  @XmlElement
+  private String ppcJavaHome;
 
   public String getSshKey() {
     return sshKey;
@@ -119,4 +122,12 @@ public class SshHostInfo {
     }
     return ret.toString();
   }
+
+	public String getPpcJavaHome() {
+		return ppcJavaHome;
+	}
+
+	public void setPpcJavaHome(String ppcJavaHome) {
+		this.ppcJavaHome = ppcJavaHome;
+	}
 }

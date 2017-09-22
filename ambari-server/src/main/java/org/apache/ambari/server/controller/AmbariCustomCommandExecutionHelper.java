@@ -704,6 +704,14 @@ public class AmbariCustomCommandExecutionHelper {
 
     ExecutionCommand execCmd = stage.getExecutionCommandWrapper(hostname,
         smokeTestRole).getExecutionCommand();
+    
+    Configuration configuration = new Configuration();
+		String osArch = cluster.getHost(hostname).getOsArch();
+		if (osArch.startsWith("ppc")) {
+			execCmd.getHostLevelParams().put(JAVA_HOME, configuration.getJavaHomePpc());
+		} else {
+			execCmd.getHostLevelParams().put(JAVA_HOME, configuration.getJavaHome());
+		}
 
     // if the command should fetch brand new configuration tags before
     // execution, then we don't need to fetch them now
@@ -1186,7 +1194,7 @@ public class AmbariCustomCommandExecutionHelper {
     if (null == family) {
       family = hostOSFamily;
     }
-
+    
     JsonElement gsonList = null;
 
     // !!! check for the most specific first
@@ -1341,7 +1349,7 @@ public class AmbariCustomCommandExecutionHelper {
   Map<String, String> createDefaultHostParams(Cluster cluster, StackId stackId) throws AmbariException{
     TreeMap<String, String> hostLevelParams = new TreeMap<>();
     hostLevelParams.put(JDK_LOCATION, managementController.getJdkResourceUrl());
-    hostLevelParams.put(JAVA_HOME, managementController.getJavaHome());
+//  hostLevelParams.put(JAVA_HOME, managementController.getJavaHome());
     hostLevelParams.put(JAVA_VERSION, String.valueOf(configs.getJavaVersion()));
     hostLevelParams.put(JDK_NAME, managementController.getJDKName());
     hostLevelParams.put(JCE_NAME, managementController.getJCEName());

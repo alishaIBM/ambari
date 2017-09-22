@@ -82,6 +82,7 @@ AMBARI_VERSION_VAR = "AMBARI_VERSION_VAR"
 
 # JDK
 JAVA_HOME_PROPERTY = "java.home"
+JAVA_HOME_PPC_PROPERTY = "java.home.ppc"
 JDK_NAME_PROPERTY = "jdk.name"
 JCE_NAME_PROPERTY = "jce.name"
 JDK_DOWNLOAD_SUPPORTED_PROPERTY = "jdk.download.supported"
