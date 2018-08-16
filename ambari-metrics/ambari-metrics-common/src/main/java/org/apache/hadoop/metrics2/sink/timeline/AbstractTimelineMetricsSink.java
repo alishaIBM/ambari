@@ -109,7 +109,7 @@ public abstract class AbstractTimelineMetricsSink {
 
   protected final Log LOG;
 
-  protected static ObjectMapper mapper;
+  public static ObjectMapper mapper;
 
   protected MetricCollectorHAHelper collectorHAHelper;
 
